@@ -12,33 +12,7 @@ const crypto = require("crypto");
 
 
 
-const allowedOrigins = [
-  'https://dimensify3d.in',
-  'http://dimensify3d.in',
-  'https://www.dimensify3d.in',
-  'http://www.dimensify3d.in',
-  'http://localhost:3000',   // for local React dev
-  'http://localhost:2026',   // if testing API locally
-];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow curl/postman
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-};
-
-const cors = require('cors');
-app.use(cors(corsOptions));
-
-// Enable pre-flight for all routes
-app.options('*', cors(corsOptions));
-
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
