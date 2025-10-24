@@ -4,7 +4,7 @@ const port = 2026;
 const multer = require("multer");
 const admin = require("./db/firebase").firebaseAdmin;
 const cors = require("cors");
-const { v4: uuidv4 } = require('uuid');
+//const { v4: uuidv4 } = require('uuid');
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
@@ -1065,49 +1065,71 @@ app.get("/api/get-products", async (req, res) => {
 });
 
 //Update products
-app.put("/api/products/:id", async (req, res) => {
+app.put("/api/products/:id", upload.array("images"), async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
 
-    // Check if product exists
-    const productSnapshot = await db.ref(`products/${id}`).once("value");
-    
-    if (!productSnapshot.exists()) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
+    // Parse JSON fields from FormData
+    const {
+      modelName,
+      price,
+      off,
+      finalPrice,
+      description,
+      customizeQuestion,
+      category,
+      existingImages
+    } = req.body;
+
+    const parsedExistingImages = existingImages
+      ? JSON.parse(existingImages)
+      : [];
+
+    const newImageUrls = [];
+
+    // Upload new images to Firebase Storage
+    for (const file of req.files) {
+      const fileName = `products/${Date.now()}_${file.originalname}`;
+      const fileRef = bucket.file(fileName);
+
+      await fileRef.save(file.buffer, {
+        metadata: { contentType: file.mimetype }
       });
+
+      const [url] = await fileRef.getSignedUrl({
+        action: "read",
+        expires: "03-09-2030"
+      });
+
+      newImageUrls.push(url);
     }
 
-    // Update the product
+    // Merge existing and new image URLs
+    const allImages = [...parsedExistingImages, ...newImageUrls];
+
+    // Update the Realtime Database product
     await db.ref(`products/${id}`).update({
-      modelName: updates.modelName,
-      price: parseFloat(updates.price),
-      off: parseFloat(updates.off),
-      finalPrice: parseFloat(updates.finalPrice),
-      description: updates.description || "",
-      customizeQuestion: updates.customizeQuestion || "",
-      category: updates.category,
-      updatedAt: Date.now(), // Track when it was last updated
+      modelName,
+      price: parseFloat(price),
+      off: parseFloat(off),
+      finalPrice: parseFloat(finalPrice),
+      description: description || "",
+      customizeQuestion: customizeQuestion || "",
+      category,
+      images: allImages,
+      updatedAt: Date.now()
     });
 
-    // Fetch the updated product
-    const updatedProductSnapshot = await db.ref(`products/${id}`).once("value");
-    const updatedProduct = updatedProductSnapshot.val();
-
+    // Fetch updated product
+    const updatedSnapshot = await db.ref(`products/${id}`).once("value");
     res.status(200).json({
       success: true,
       message: "Product updated successfully",
-      data: updatedProduct,
+      data: updatedSnapshot.val()
     });
   } catch (error) {
     console.error("Error updating product:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 });
 
