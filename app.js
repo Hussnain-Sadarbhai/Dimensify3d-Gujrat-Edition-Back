@@ -14,7 +14,7 @@ const crypto = require("crypto");
 
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json({ limit: "10mb" }));
@@ -1696,6 +1696,7 @@ app.post("/api/store-orders", async (req, res) => {
       savings: savings || 0,
       deliveryCharge: deliveryCharge || 0,
       customizationCost: customizationCost || 0,
+      
       items: items.map(item => ({
         id: item.id,
         name: item.name,
@@ -1753,6 +1754,41 @@ app.post("/api/store-orders", async (req, res) => {
     });
   }
 });
+app.patch("/api/decrementCouponLimit", async (req, res) => {
+  console.log("entered")
+  const { couponCode, couponlimit } = req.body;
+  
+  if (!couponCode) {
+    return res.status(400).json({ success: false, message: "Coupon name is required" });
+  }
+
+  console.log("Searching for coupon by name:", couponCode);
+
+  try {
+    const couponsRef = db.ref("coupons");
+    const snapshot = await couponsRef.orderByChild("name").equalTo(couponCode).once("value");
+
+    if (!snapshot.exists()) {
+      return res.status(404).json({ success: false, message: "Coupon not found" });
+    }
+
+    const coupons = snapshot.val();
+    const couponId = Object.keys(coupons)[0];
+    const limitRef = db.ref(`coupons/${couponId}/limit`);
+
+   
+    
+    // Update limit to couponlimit value
+    await limitRef.set(couponlimit);
+
+    return res.json({ success: true, message: "Coupon limit successfully updated" });
+  } catch (error) {
+    console.error("Error updating coupon limit by name:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+
 
 //put api to update onlins store order
 app.put('/api/users/:userId/onlinestoreorders/:orderKey/status', async (req, res) => {
