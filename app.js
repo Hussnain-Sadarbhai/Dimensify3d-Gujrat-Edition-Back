@@ -279,6 +279,153 @@ app.put("/api/help-request/:id", async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+//ONE DAY 
+
+// Increment page view count for Promotion page
+app.post('/api/pageview/increment', async (req, res) => {
+  try {
+    const pageRef = db.ref('pageViews/promotionPage');
+    const snapshot = await pageRef.once('value');
+    if (snapshot.exists()) {
+      await pageRef.set(snapshot.val() + 1);
+    } else {
+      await pageRef.set(1);
+    }
+    res.status(200).json({ success: true, message: 'Page view incremented' });
+  } catch (error) {
+    console.error('Error incrementing page view:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get page view count for Promotion page
+app.get('/api/pageview/count', async (req, res) => {
+  try {
+    const pageRef = db.ref('pageViews/promotionPage');
+    const snapshot = await pageRef.once('value');
+    const count = snapshot.exists() ? snapshot.val() : 0;
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    console.error('Error getting page view count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+// Increment Website Click count
+app.post('/api/pageview/incrementWebsiteClick', async (req, res) => {
+  try {
+    const ref = db.ref('clickCounts/websiteClick');
+    const snapshot = await ref.once('value');
+    if (snapshot.exists()) {
+      await ref.set(snapshot.val() + 1);
+    } else {
+      await ref.set(1);
+    }
+    res.status(200).json({ success: true, message: 'Website click count incremented' });
+  } catch (error) {
+    console.error('Error incrementing website click count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Increment Quotation Click count
+app.post('/api/pageview/incrementQuotationClick', async (req, res) => {
+  try {
+    const ref = db.ref('clickCounts/quotationClick');
+    const snapshot = await ref.once('value');
+    if (snapshot.exists()) {
+      await ref.set(snapshot.val() + 1);
+    } else {
+      await ref.set(1);
+    }
+    res.status(200).json({ success: true, message: 'Quotation click count incremented' });
+  } catch (error) {
+    console.error('Error incrementing quotation click count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get all counts together
+app.get('/api/pageview/clickCounts', async (req, res) => {
+  try {
+    const websiteRef = db.ref('clickCounts/websiteClick');
+    const quoteRef = db.ref('clickCounts/quotationClick');
+    const [websiteSnap, quoteSnap] = await Promise.all([websiteRef.once('value'), quoteRef.once('value')]);
+    const websiteCount = websiteSnap.exists() ? websiteSnap.val() : 0;
+    const quoteCount = quoteSnap.exists() ? quoteSnap.val() : 0;
+    res.status(200).json({ success: true, websiteCount, quoteCount });
+  } catch (error) {
+    console.error('Error getting click counts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+app.post('/api/form-submit', async (req, res) => {
+  try {
+    const { name, email, phone, eligibleDay, eligibleTimeFrom, eligibleTimeTo } = req.body;
+
+    // Basic validation
+    if (!name || !email || !phone) {
+      return res.status(400).json({ success: false, message: 'Name, email, and phone are required' });
+    }
+
+    // Prepare form data object with timestamps
+    const formData = {
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      eligibleDay,
+      eligibleTimeFrom,
+      eligibleTimeTo,
+      createdAt: admin.database.ServerValue.TIMESTAMP,
+      updatedAt: admin.database.ServerValue.TIMESTAMP
+    };
+
+    // Save form data to Firebase Realtime Database under 'formSubmissions' node
+    const formRef = db.ref('formSubmissions');
+    const newFormRef = formRef.push();
+    await newFormRef.set(formData);
+
+    console.log('Form data saved:', formData);
+
+    res.status(201).json({ success: true, message: 'Form submitted successfully' });
+  } catch (error) {
+    console.error('Error saving form data:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+app.get('/api/form-submissions', async (req, res) => {
+  try {
+    const formRef = db.ref('formSubmissions');
+    const snapshot = await formRef.once('value');
+    const forms = snapshot.exists() ? snapshot.val() : {};
+    res.status(200).json({ success: true, forms });
+  } catch (error) {
+    console.error('Error fetching form submissions:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
 // GET API to fetch admin credentials
 app.get('/api/admin-credentials', async (req, res) => {
   try {
